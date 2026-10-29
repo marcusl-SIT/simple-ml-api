@@ -1,39 +1,57 @@
 """
-Train and save a simple model.
-Run this once: python model.py
+Download MobileNetV2 and the ImageNet class names.
+
+Run this before starting or deploying the API:
+
+    python model.py
 """
 
-import joblib
-import numpy as np
-import pandas as pd
+import json
+import urllib.request
 from pathlib import Path
-from sklearn.ensemble import RandomForestClassifier
+
+import tensorflow as tf
 
 
-def train_and_save():
-    """Train a dummy model and save it."""
-    # Generate fake data
-    np.random.seed(42)
-    n = 1000
-    
-    X = pd.DataFrame({
-        'age': np.random.randint(18, 70, n),
-        'income': np.random.randint(20000, 150000, n),
-        'credit_score': np.random.randint(300, 850, n),
-    })
-    
-    # Fake target: approve if credit_score > 600 and income > 40000
-    y = ((X['credit_score'] > 600) & (X['income'] > 40000)).astype(int)
-    
-    # Train
-    model = RandomForestClassifier(n_estimators=50, random_state=42)
-    model.fit(X, y)
-    
-    # Save
-    Path('models').mkdir(exist_ok=True)
-    joblib.dump(model, 'models/model.joblib')
-    print("Model saved to models/model.joblib")
+MODEL_DIR = Path("models")
+MODEL_PATH = MODEL_DIR / "mobilenet_v2.keras"
+CLASS_NAMES_PATH = MODEL_DIR / "imagenet_class_index.json"
+
+CLASS_NAMES_URL = (
+    "https://storage.googleapis.com/"
+    "download.tensorflow.org/data/imagenet_class_index.json"
+)
+
+
+def main():
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("Downloading pretrained MobileNetV2...")
+
+    model = tf.keras.applications.MobileNetV2(
+        weights="imagenet",
+        include_top=True,
+    )
+
+    model.save(MODEL_PATH)
+
+    print(f"Saved TensorFlow model to {MODEL_PATH}")
+
+    print("Downloading ImageNet class names...")
+
+    with urllib.request.urlopen(
+        CLASS_NAMES_URL,
+        timeout=60,
+    ) as response:
+        class_names = json.load(response)
+
+    CLASS_NAMES_PATH.write_text(
+        json.dumps(class_names, indent=2),
+        encoding="utf-8",
+    )
+
+    print(f"Saved class names to {CLASS_NAMES_PATH}")
 
 
 if __name__ == "__main__":
-    train_and_save()
+    main()
